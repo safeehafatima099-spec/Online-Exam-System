@@ -1,0 +1,160 @@
+#include <iostream>
+#include <string>
+#include <chrono>
+#include <thread>
+#include <cctype>
+using namespace std;
+struct Question {
+    int qNo;
+    string question;
+    string optionA, optionB, optionC, optionD;
+    char correctAnswer;
+    Question* next;
+};
+struct Student {
+    string name;
+    string email;
+    int score;
+    Student* next; 
+};
+Question* qHead = nullptr;      
+  Student* sFront = nullptr;        
+Student* sRear = nullptr;         
+void addQuestion();
+void displayQuestions();
+void enqueueStudent(Student* s);
+Student* dequeueStudent();
+void attemptExam(Student* student);
+void examTimer(int seconds);
+void addQuestion() {
+   Question* newQ = new Question;
+    cout << "\nEnter Question Number: ";
+    cin >> newQ->qNo;
+    cin.ignore();
+    cout << "Enter Question: ";
+    getline(cin, newQ->question);
+    cout << "Option A: "; getline(cin, newQ->optionA);
+    cout << "Option B: "; getline(cin, newQ->optionB);
+    cout << "Option C: "; getline(cin, newQ->optionC);
+    cout << "Option D: "; getline(cin, newQ->optionD);
+    cout << "Enter Correct Answer (A/B/C/D): ";
+    cin >> newQ->correctAnswer;
+    cin.ignore();
+    newQ->next = nullptr;
+    if (qHead == nullptr)
+        qHead = newQ;
+    else {
+        Question* temp = qHead;
+        while (temp->next != nullptr)
+            temp = temp->next;
+        temp->next = newQ;
+    }
+}
+void displayQuestions() {
+    if (!qHead) {
+        cout << "No questions available!\n";
+        return;
+    }
+    Question* temp = qHead;
+    cout << "\n----- QUESTIONS -----\n";
+   while (temp != nullptr) {
+        cout << temp->qNo << ". " << temp->question << "\n";
+        cout << "A) " << temp->optionA << "  B) " << temp->optionB
+             << "  C) " << temp->optionC << "  D) " << temp->optionD << "\n";
+        temp = temp->next;
+    }
+}
+void enqueueStudent(Student* s) {
+    s->next = nullptr;
+    if (sRear == nullptr) {
+        sFront = sRear = s;
+    } else {
+        sRear->next = s;
+        sRear = s;
+    }
+}
+Student* dequeueStudent() {
+    if (!sFront) return nullptr;
+    Student* temp = sFront;
+    sFront = sFront->next;
+    if (!sFront) sRear = nullptr;
+    return temp;
+}
+void examTimer(int seconds) {
+    cout << "\n⏱ Exam timer started: " << seconds << " seconds\n";
+    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+    // Timer over: clear all students in queue
+    Student* temp;
+    while (sFront) {
+        temp = dequeueStudent();
+        delete temp;
+    }
+    cout << "\n⚠ Exam time over! All students removed from exam.\n";
+    exit(0);
+}
+void attemptExam(Student* student) {
+    if (!qHead) {
+        cout << "No questions to attempt!\n";
+        return;
+    }
+    int score = 0;
+    Question* temp = qHead;
+    cout << "\n----- Exam Started for " << student->name << " -----\n";
+    while (temp) {
+        cout << "\nQ" << temp->qNo << ": " << temp->question << endl;
+        cout << "A) " << temp->optionA << "  B) " << temp->optionB
+             << "  C) " << temp->optionC << "  D) " << temp->optionD << endl;
+        char answer;
+        cout << "Enter your answer: ";
+        cin >> answer;
+        while (toupper(answer) != 'A' && toupper(answer) != 'B' &&
+               toupper(answer) != 'C' && toupper(answer) != 'D') {
+            cout << "Invalid choice! Enter A/B/C/D: ";
+            cin >> answer;
+        }
+        if (toupper(answer) == toupper(temp->correctAnswer))
+            score++;
+        temp = temp->next;
+    }
+
+    student->score = score;
+    cout << "\n✅ Exam Finished!\n";
+    cout << "Score: " << student->score << "/" << "Total Questions\n";
+    double percentage = ((double)student->score / 5) * 100; // assuming 5 questions
+    if (percentage >= 50)
+        cout << "Status: PASS\n";
+    else
+        cout << "Status: FAIL\n";
+}
+int main() {
+        int numQuestions;
+    cout << "Admin: How many questions to add? ";
+    cin >> numQuestions;
+    cin.ignore();
+    for (int i = 0; i < numQuestions; ++i) {
+        addQuestion();
+    }
+    displayQuestions();
+    std::thread timerThread(examTimer, 120); 
+    timerThread.detach();
+    int numStudents;
+    cout << "\nEnter number of students: ";
+    cin >> numStudents;
+    cin.ignore();
+    for (int i = 0; i < numStudents; ++i) {
+        Student* s = new Student;
+        cout << "\nEnter Student Name: ";
+        getline(cin, s->name);
+        cout << "Enter Student Email: ";
+        getline(cin, s->email);
+        s->score = 0;
+        enqueueStudent(s);
+    }
+    Student* current;
+    while ((current = dequeueStudent()) != nullptr) {
+        attemptExam(current);
+        delete current;
+        cout << "\nNext student can start...\n";
+    }
+    return 0;
+}
